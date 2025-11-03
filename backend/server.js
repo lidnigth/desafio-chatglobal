@@ -1,4 +1,6 @@
 import express from "express";
+import http from "http";
+import { Server } from "socket.io";
 import cors from "cors";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
@@ -6,6 +8,29 @@ import { open } from "sqlite";
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "DELETE"],
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log("Novo cliente conectado:", socket.id);
+
+  socket.on("enviarMensagem", (mensagem) => {
+    console.log("Mensagem recebida:", mensagem);
+
+    io.emit("mensagemRecebida", mensagem);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Cliente desconectado:", socket.id);
+  });
+});
 
 let db;
 async function init() {
@@ -20,7 +45,7 @@ async function init() {
     );
 
     const PORT = process.env.PORT || 3005;
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Servidor rodando em http://localhost:${PORT}/mensagens`);
     });
   } catch (err) {

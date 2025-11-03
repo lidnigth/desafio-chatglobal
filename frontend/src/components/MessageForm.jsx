@@ -16,7 +16,10 @@ function MessageForm({ onEnviar }) {
       <input
         placeholder="Seu nome"
         value={autor}
-        onChange={(e) => setAutor(e.target.value)}
+        onChange={(e) => {
+          e.preventDefault();
+          setAutor(e.target.value);
+        }}
       />
       <input
         placeholder="Sua mensagem"
