@@ -1,52 +1,60 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import MessageList from "./components/MessageList";
 import MessageForm from "./components/MessageForm";
 
-const API_URL = "http://localhost:3005/mensagens";
-const socket = io("http://localhost:3005");
-
 function App() {
   const [mensagens, setMensagens] = useState([]);
 
-  useEffect(() => {
-    fetch(API_URL)
-      .then((res) => res.json())
-      .then((data) => setMensagens(data))
-      .catch((err) => console.error("Erro ao buscar mensagens:", err));
-  }, []);
+  const socketRef = useRef(null);
 
   useEffect(() => {
+    socketRef.current = io("http://localhost:3005");
+    const socket = socketRef.current;
+
     socket.on("connect", () => {
       console.log("Conectado ao servidor de sockets com ID:", socket.id);
     });
 
+    socket.on("historicoMensagens", (mensagem) => {
+      setMensagens(mensagem);
+    });
+
     socket.on("mensagemRecebida", (mensagem) => {
       console.log("Mensagem recebida via socket:", mensagem);
-      setMensagens((prev) => {
-        if (prev.find((msg) => msg.id === mensagem.id)) return prev;
-        return [...prev, mensagem];
-      });
+      setMensagens((prev) => [...prev, mensagem]);
+    });
+
+    socket.on("mensagemConfirmada", (mensagem) => {
+      console.log("Mensagem confirmada pelo servidor:", mensagem);
+      setMensagens((prev) => [...prev, mensagem]);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Desconectado do servidor");
     });
 
     return () => {
       socket.off("connect");
+      socket.off("historicoMensagens");
       socket.off("mensagemRecebida");
+      socket.off("mensagemConfirmada");
+      socket.off("disconnect");
+      socket.disconnect();
+      socketRef.current = null;
     };
   }, []);
 
-  const enviarMensagem = async (autor, conteudo) => {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ autor, conteudo }),
-    });
-    const novaMensagem = await res.json();
-    setMensagens([...mensagens, novaMensagem]);
+  const enviarMensagem = (autor, conteudo) => {
+    if (!conteudo.trim()) return;
 
-    socket.emit("enviarMensagem", novaMensagem);
+    const mensagem = { autor, conteudo };
+    const socket = socketRef.current;
+    if (!socket) {
+      console.error("Socket não está conectado");
+      return;
+    }
+    socket.emit("enviarMensagem", mensagem);
   };
 
   return (
