@@ -51,6 +51,8 @@ async function init() {
       },
     });
 
+    let usuariosConectados = [];
+
     io.on("connection", async (socket) => {
       console.log("Novo cliente conectado:", socket.id);
 
@@ -62,6 +64,37 @@ async function init() {
       } catch (err) {
         console.error("Erro ao buscar histórico de mensagens:", err);
       }
+      socket.on("entrarChat", (nickname, callback) => {
+        const nickEmUso = usuariosConectados.find(
+          (user) => user.nickname === nickname
+        );
+        if (nickEmUso) {
+          callback({ sucesso: false, mensagem: "Nickname já está em uso." });
+          return;
+        }
+
+        const novoUsuario = { id: socket.id, nickname };
+        usuariosConectados.push(novoUsuario);
+        console.log(`Usuário ${nickname} entrou no chat.`);
+
+        io.emit("usuariosAtualizados", usuariosConectados);
+        io.emit("mensagemSistema", `${nickname} entrou no chat.`);
+
+        callback({ sucesso: true });
+      });
+
+      socket.on("disconnect", () => {
+        const usuario = usuariosConectados.find(
+          (user) => user.id === socket.id
+        );
+        if (usuario) {
+          usuariosConectados = usuariosConectados.filter(
+            (user) => user.id !== socket.id
+          );
+          io.emit("usuariosAtualizados", usuariosConectados);
+          io.emit("mensagemSistema", `${usuario.nickname} saiu do chat.`);
+        }
+      });
 
       socket.on("enviarMensagem", async (mensagem) => {
         try {
@@ -86,10 +119,6 @@ async function init() {
           console.error("Erro ao salvar mensagem:", err);
           socket.emit("erro", { message: "Erro ao salvar a mensagem." });
         }
-      });
-
-      socket.on("disconnect", () => {
-        console.log("Cliente desconectado:", socket.id);
       });
     });
   } catch (err) {
