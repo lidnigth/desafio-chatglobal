@@ -1,5 +1,49 @@
 import { useState } from "react";
-import "./Login.css";
+import styled from "styled-components";
+
+const LoginContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #e2e8f0;
+`;
+
+const Input = styled.input`
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  margin-top: 10px;
+  width: 200px;
+  background-color: #334155;
+  color: white;
+
+  &:focus {
+    outline: 2px solid #38bdf8;
+  }
+`;
+
+const Button = styled.button`
+  margin-top: 15px;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: bold;
+  cursor: pointer;
+
+  &:hover {
+    background: #0ea5e9;
+  }
+`;
+
+const ErrorMessage = styled.p`
+  color: #f87171;
+  margin-top: 10px;
+`;
 
 function Login({ socket, onEntrar }) {
   const [nickname, setNickname] = useState("");
@@ -32,21 +76,21 @@ function Login({ socket, onEntrar }) {
   };
 
   return (
-    <div className="login-container">
+    <LoginContainer>
       <h2>Escolha seu nickname</h2>
-      <form onSubmit={handleSubmit} className="login-form">
-        <input
+      <form onSubmit={handleSubmit}>
+        <Input
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           placeholder="Digite seu nickname"
           disabled={isLoading}
         />
-        <button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading}>
           {isLoading ? "Entrando..." : "Entrar"}
-        </button>
+        </Button>
       </form>
-      {error && <p className="error-message">{error}</p>}
-    </div>
+      {error && <ErrorMessage>{error}</ErrorMessage>}
+    </LoginContainer>
   );
 }
 

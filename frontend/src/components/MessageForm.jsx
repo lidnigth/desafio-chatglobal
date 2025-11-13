@@ -1,34 +1,55 @@
 import { useState } from "react";
+import styled from "styled-components";
+
+const Form = styled.form`
+  display: flex;
+  margin-top: 10px;
+`;
+
+const Input = styled.input`
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  background-color: #1e293b
+  color: #e2e8f0;
+  `;
+
+const Button = styled.button`
+  margin-left: 10px;
+  padding: 10px 15px;
+  border: none;
+  background: #38bdf8;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: #0ea5e9;
+  }
+`;
 
 function MessageForm({ onEnviar }) {
-  const [autor, setAutor] = useState("");
   const [conteudo, setConteudo] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!autor.trim() || !conteudo.trim()) return;
-    onEnviar(autor, conteudo);
+    if (!conteudo.trim()) return;
+    onEnviar(conteudo);
     setConteudo("");
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        placeholder="Seu nome"
-        value={autor}
-        onChange={(e) => {
-          setAutor(e.target.value);
-        }}
-      />
-      <input
+    <Form onSubmit={handleSubmit}>
+      <Input
         placeholder="Sua mensagem"
         value={conteudo}
         onChange={(e) => {
           setConteudo(e.target.value);
         }}
       />
-      <button type="submit">Enviar</button>
-    </form>
+      <Button type="submit">Enviar</Button>
+    </Form>
   );
 }
 

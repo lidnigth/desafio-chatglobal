@@ -1,10 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import Login from "./components/Login";
-import MessageList from "./components/MessageList";
-import MessageForm from "./components/MessageForm";
-import UserList from "./components/UserList";
-import "./App.css";
+import ChatPage from "./pages/ChatPage";
 
 function App() {
   const [mensagens, setMensagens] = useState([]);
@@ -14,7 +11,10 @@ function App() {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:3005");
+    if (!socketRef.current) {
+      socketRef.current = io("http://localhost:3005");
+    }
+
     const socket = socketRef.current;
 
     socket.on("connect", () => {
@@ -66,17 +66,17 @@ function App() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [nickname]);
 
   const enviarMensagem = (autor, conteudo) => {
     if (!conteudo.trim()) return;
 
-    const mensagem = { autor, conteudo };
     const socket = socketRef.current;
-    if (!socket) {
+    if (!socket || !socket.connected) {
       console.error("Socket não está conectado");
       return;
     }
+    const mensagem = { autor: nickname, conteudo };
     socket.emit("enviarMensagem", mensagem);
   };
 
@@ -90,18 +90,12 @@ function App() {
   }
 
   return (
-    <div className="chat-container">
-      <div className="chat-main">
-        <h1>Chat Global - {nickname}</h1>
-        <MessageList mensagens={mensagens} />
-        <MessageForm
-          onEnviar={(conteudo) => enviarMensagem(nickname, conteudo)}
-        />
-      </div>
-      <div className="chat-sidebar">
-        <UserList usuarios={usuariosConectados} />
-      </div>
-    </div>
+    <ChatPage
+      mensagens={mensagens}
+      onEnviar={enviarMensagem}
+      usuarios={usuariosConectados}
+      nickname={nickname}
+    />
   );
 }
 
