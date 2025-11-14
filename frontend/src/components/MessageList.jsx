@@ -20,6 +20,7 @@ const MessageListContainer = styled.div`
 
 const MessageItem = styled.li`
   margin-bottom: 10px;
+  list-style: none;
   padding: 10px;
   border-radius: 6px;
   background: ${({ $isSystem }) => ($isSystem ? "#1e293b" : "#0f172a")};

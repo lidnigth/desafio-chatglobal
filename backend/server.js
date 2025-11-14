@@ -32,132 +32,139 @@ init();
 */
 
 import express from "express";
-import { Server } from "socket.io";
 import cors from "cors";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import Database from "better-sqlite3";
+import { Server } from "socket.io";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-let db;
-async function init() {
-  try {
-    db = await open({
-      filename: "./database.db",
-      driver: sqlite3.Database,
-    });
+// ================================
+// BANCO DE DADOS (better-sqlite3)
+// ================================
+const db = new Database("./database.db");
 
-    await db.run(
-      `CREATE TABLE IF NOT EXISTS mensagens (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, 
-      autor TEXT,
-      conteudo TEXT,
-      data TEXT)`
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mensagens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    autor TEXT,
+    conteudo TEXT,
+    data TEXT
+  )
+`);
+
+// ================================
+// ROTAS HTTP
+// ================================
+app.get("/", (req, res) => {
+  res.send("Servidor do Chat Global está rodando.");
+});
+
+app.get("/mensagens", (req, res) => {
+  try {
+    const mensagens = db.prepare("SELECT * FROM mensagens ORDER BY id ASC").all();
+    res.json(mensagens);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar mensagens" });
+  }
+});
+
+// ================================
+// SOCKET.IO
+// ================================
+const PORT = process.env.PORT || 3005;
+const server = app.listen(PORT, () => {
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
+});
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+let usuariosConectados = [];
+
+io.on("connection", (socket) => {
+  console.log("Novo cliente conectado:", socket.id);
+
+  try {
+    const historico = db.prepare("SELECT * FROM mensagens ORDER BY id ASC").all();
+    socket.emit("historicoMensagens", historico);
+  } catch (err) {
+    console.error("Erro ao carregar histórico:", err);
+  }
+
+  // ============================
+  // ENTRAR NO CHAT
+  // ============================
+  socket.on("entrarChat", (nickname, callback) => {
+    const nickEmUso = usuariosConectados.some(
+      (user) => user.nickname === nickname
     );
 
-    app.get("/", (req, res) => {
-      res.send("Servidor do Chat Global está rodando.");
-    });
+    if (nickEmUso) {
+      callback({ sucesso: false, mensagem: "Nickname já está em uso." });
+      return;
+    }
 
-    app.get("/mensagens", async (req, res) => {
-      try {
-        const mensagens = await db.all(
-          "SELECT * FROM mensagens ORDER BY id ASC"
-        );
-        res.json(mensagens);
-      } catch (err) {
-        res.status(500).json({ error: "Erro ao buscar mensagens" });
-      }
-    });
+    const novoUsuario = { id: socket.id, nickname };
+    usuariosConectados.push(novoUsuario);
 
-    const PORT = process.env.PORT || 3005;
-    const server = app.listen(PORT, () => {
-      console.log(`Servidor rodando em http://localhost:${PORT}/mensagens`);
-    });
+    console.log(`Usuário ${nickname} entrou no chat.`);
+    io.emit("usuariosAtualizados", usuariosConectados);
+    io.emit("mensagemSistema", `${nickname} entrou no chat.`);
 
-    const io = new Server(server, {
-      cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-      },
-    });
+    callback({ sucesso: true });
+  });
 
-    let usuariosConectados = [];
+  // ============================
+  // DESCONECTAR
+  // ============================
+  socket.on("disconnect", () => {
+    const usuario = usuariosConectados.find(
+      (user) => user.id === socket.id
+    );
 
-    io.on("connection", async (socket) => {
-      console.log("Novo cliente conectado:", socket.id);
+    if (usuario) {
+      usuariosConectados = usuariosConectados.filter(
+        (user) => user.id !== socket.id
+      );
 
-      try {
-        const historico = await db.all(
-          `SELECT * FROM mensagens ORDER BY id ASC`
-        );
-        socket.emit("historicoMensagens", historico);
-      } catch (err) {
-        console.error("Erro ao buscar histórico de mensagens:", err);
-      }
-      socket.on("entrarChat", (nickname, callback) => {
-        const nickEmUso = usuariosConectados.find(
-          (user) => user.nickname === nickname
-        );
-        if (nickEmUso) {
-          callback({ sucesso: false, mensagem: "Nickname já está em uso." });
-          return;
-        }
+      io.emit("usuariosAtualizados", usuariosConectados);
+      io.emit("mensagemSistema", `${usuario.nickname} saiu do chat.`);
+    }
+  });
 
-        const novoUsuario = { id: socket.id, nickname };
-        usuariosConectados.push(novoUsuario);
-        console.log(`Usuário ${nickname} entrou no chat.`);
+  // ============================
+  // ENVIAR MENSAGEM
+  // ============================
+  socket.on("enviarMensagem", (mensagem) => {
+    try {
+      const data = new Date().toISOString();
 
-        io.emit("usuariosAtualizados", usuariosConectados);
-        io.emit("mensagemSistema", `${nickname} entrou no chat.`);
+      const stmt = db.prepare(`
+        INSERT INTO mensagens (autor, conteudo, data)
+        VALUES (?, ?, ?)
+      `);
 
-        callback({ sucesso: true });
-      });
+      const result = stmt.run(mensagem.autor, mensagem.conteudo, data);
 
-      socket.on("disconnect", () => {
-        const usuario = usuariosConectados.find(
-          (user) => user.id === socket.id
-        );
-        if (usuario) {
-          usuariosConectados = usuariosConectados.filter(
-            (user) => user.id !== socket.id
-          );
-          io.emit("usuariosAtualizados", usuariosConectados);
-          io.emit("mensagemSistema", `${usuario.nickname} saiu do chat.`);
-        }
-      });
+      const novaMensagem = {
+        id: result.lastInsertRowid,
+        autor: mensagem.autor,
+        conteudo: mensagem.conteudo,
+        data,
+      };
 
-      socket.on("enviarMensagem", async (mensagem) => {
-        try {
-          console.log("Mensagem recebida:", mensagem);
+      socket.broadcast.emit("mensagemRecebida", novaMensagem);
+      socket.emit("mensagemConfirmada", novaMensagem);
 
-          const data = new Date().toISOString();
-          const result = await db.run(
-            `INSERT INTO mensagens (autor, conteudo, data) VALUES (?, ?, ?)`,
-            [mensagem.autor, mensagem.conteudo, data]
-          );
-
-          const novaMensagem = {
-            id: result.lastID,
-            autor: mensagem.autor,
-            conteudo: mensagem.conteudo,
-            data: data,
-          };
-
-          socket.broadcast.emit("mensagemRecebida", novaMensagem);
-          socket.emit("mensagemConfirmada", novaMensagem);
-        } catch (err) {
-          console.error("Erro ao salvar mensagem:", err);
-          socket.emit("erro", { message: "Erro ao salvar a mensagem." });
-        }
-      });
-    });
-  } catch (err) {
-    console.error("Erro ao inicializar o banco de dados:", err);
-    process.exit(1);
-  }
-}
-
-init();
+    } catch (err) {
+      console.error("Erro ao salvar mensagem:", err);
+      socket.emit("erro", { message: "Erro ao salvar mensagem." });
+    }
+  });
+});

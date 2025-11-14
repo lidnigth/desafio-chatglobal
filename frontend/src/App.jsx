@@ -66,7 +66,7 @@ function App() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [nickname]);
+  }, []);
 
   const enviarMensagem = (autor, conteudo) => {
     if (!conteudo.trim()) return;
