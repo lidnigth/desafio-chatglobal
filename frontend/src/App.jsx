@@ -11,6 +11,13 @@ function App() {
   const socketRef = useRef(null);
 
   useEffect(() => {
+    const savedNickname = localStorage.getItem("nickname");
+    if (savedNickname) {
+      setNickname(savedNickname);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!socketRef.current) {
       socketRef.current = io("http://localhost:3005");
     }

@@ -68,6 +68,7 @@ function Login({ socket, onEntrar }) {
       setIsLoading(false);
       if (resposta && resposta.sucesso) {
         setError("");
+        localStorage.setItem("nickname", nick);
         onEntrar(nick);
       } else {
         setError(resposta?.mensagem || "Erro ao entrar no chat.");
