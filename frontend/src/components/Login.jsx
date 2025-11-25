@@ -58,22 +58,9 @@ function Login({ socket, onEntrar }) {
       return;
     }
 
-    if (!socket) {
-      setError("Socket não está conectado.");
-      return;
-    }
-
     setIsLoading(true);
-    socket.emit("entrarChat", nick, (resposta) => {
-      setIsLoading(false);
-      if (resposta && resposta.sucesso) {
-        setError("");
-        localStorage.setItem("nickname", nick);
-        onEntrar(nick);
-      } else {
-        setError(resposta?.mensagem || "Erro ao entrar no chat.");
-      }
-    });
+
+    onEntrar(nick);
   };
 
   return (

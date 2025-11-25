@@ -33,7 +33,22 @@ const Title = styled.h1`
   color: #38bdf8;
 `;
 
-function ChatPage({ mensagens, onEnviar, usuarios, nickname }) {
+const LogoutButton = styled.button`
+  margin-top: 15px;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  background: #ef4444;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+
+  &:hover {
+    background: #dc2626;
+  }
+`;
+
+function ChatPage({ mensagens, onEnviar, usuarios, nickname, onLogout }) {
   return (
     <ChatPageContainer>
       <ChatMain>
@@ -42,7 +57,12 @@ function ChatPage({ mensagens, onEnviar, usuarios, nickname }) {
         <MessageForm onEnviar={(conteudo) => onEnviar(nickname, conteudo)} />
       </ChatMain>
       <ChatSidebar>
+        <div>
         <UserList usuarios={usuarios} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <LogoutButton onClick={onLogout}>Sair</LogoutButton>
+        </div>
       </ChatSidebar>
     </ChatPageContainer>
   );
