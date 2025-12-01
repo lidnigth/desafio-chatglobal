@@ -29,12 +29,20 @@ const Button = styled.button`
   }
 `;
 
-function MessageForm({ onEnviar }) {
+function MessageForm({ onEnviar, onEnviarSussurro }) {
   const [conteudo, setConteudo] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!conteudo.trim()) return;
+    if (conteudo.startsWith("@")) {
+      const partes = conteudo.split(" ");
+      const destinatarioNick = partes[0].substring(1);
+      const mensagemConteudo = partes.slice(1).join(" ");
+      onEnviarSussurro(destinatarioNick, mensagemConteudo);
+      setConteudo("");
+      return;
+    }
     onEnviar(conteudo);
     setConteudo("");
   };

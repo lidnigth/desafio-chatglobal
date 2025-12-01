@@ -35,6 +35,11 @@ function App() {
       setMensagens((prev) => [...prev, mensagem]);
     });
 
+    socket.on("sussurroRecebido", (mensagem) => {
+      console.log("Sussurro recebido via socket:", mensagem);
+      setMensagens((prev) => [...prev, mensagem]);
+    });
+
     socket.on("disconnect", () => {
       console.log("Desconectado do servidor");
     });
@@ -62,6 +67,7 @@ function App() {
       socket.off("historicoMensagens");
       socket.off("mensagemRecebida");
       socket.off("mensagemConfirmada");
+      socket.off("sussurroRecebido");
       socket.off("usuariosAtualizados");
       socket.off("mensagemSistema");
       socket.off("disconnect");
@@ -100,7 +106,10 @@ function App() {
         if (resposta && resposta.sucesso) {
           setNickname(savedNick);
         } else {
-          console.warn("Não foi possível restaurar sessão:", resposta?.mensagem);
+          console.warn(
+            "Não foi possível restaurar sessão:",
+            resposta?.mensagem
+          );
           localStorage.removeItem("nickname");
           setNickname("");
         }
@@ -111,7 +120,10 @@ function App() {
           if (resposta && resposta.sucesso) {
             setNickname(savedNick);
           } else {
-            console.warn("Não foi possível restaurar sessão:", resposta?.mensagem);
+            console.warn(
+              "Não foi possível restaurar sessão:",
+              resposta?.mensagem
+            );
             localStorage.removeItem("nickname");
             setNickname("");
           }
@@ -136,6 +148,19 @@ function App() {
     socket.emit("enviarMensagem", mensagem);
   };
 
+  const enviarSussurro = (autor, conteudo, destinatarioNick) => {
+    if (!conteudo.trim() || !destinatarioNick.trim()) return;
+
+    const socket = socketRef.current;
+    if (!socket || !socket.connected) {
+      console.error("Socket não está conectado");
+      return;
+    }
+
+    const sussurro = { autor: nickname, conteudo, para: destinatarioNick };
+    socket.emit("enviarSussurro", sussurro, destinatarioNick);
+  };
+
   const handleLogout = () => {
     const socket = socketRef.current;
     localStorage.removeItem("nickname");
@@ -143,19 +168,15 @@ function App() {
     if (socket) socket.disconnect();
   };
 
-
   if (!nickname) {
-    return (
-      <Login
-        onEntrar={handleLogin}
-      />
-    );
+    return <Login onEntrar={handleLogin} />;
   }
 
   return (
     <ChatPage
       mensagens={mensagens}
       onEnviar={enviarMensagem}
+      onEnviarSussurro={enviarSussurro}
       usuarios={usuariosConectados}
       nickname={nickname}
       onLogout={handleLogout}

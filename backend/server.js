@@ -50,7 +50,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     autor TEXT,
     conteudo TEXT,
-    data TEXT
+    data TEXT,
+    para TEXT
   )
 `);
 
@@ -63,7 +64,9 @@ app.get("/", (req, res) => {
 
 app.get("/mensagens", (req, res) => {
   try {
-    const mensagens = db.prepare("SELECT * FROM mensagens ORDER BY id ASC").all();
+    const mensagens = db
+      .prepare("SELECT * FROM mensagens ORDER BY id ASC")
+      .all();
     res.json(mensagens);
   } catch (err) {
     res.status(500).json({ error: "Erro ao buscar mensagens" });
@@ -91,7 +94,9 @@ io.on("connection", (socket) => {
   console.log("Novo cliente conectado:", socket.id);
 
   try {
-    const historico = db.prepare("SELECT * FROM mensagens ORDER BY id ASC").all();
+    const historico = db
+      .prepare("SELECT * FROM mensagens ORDER BY id ASC")
+      .all();
     socket.emit("historicoMensagens", historico);
   } catch (err) {
     console.error("Erro ao carregar histórico:", err);
@@ -124,9 +129,7 @@ io.on("connection", (socket) => {
   // DESCONECTAR
   // ============================
   socket.on("disconnect", () => {
-    const usuario = usuariosConectados.find(
-      (user) => user.id === socket.id
-    );
+    const usuario = usuariosConectados.find((user) => user.id === socket.id);
 
     if (usuario) {
       usuariosConectados = usuariosConectados.filter(
@@ -161,10 +164,53 @@ io.on("connection", (socket) => {
 
       socket.broadcast.emit("mensagemRecebida", novaMensagem);
       socket.emit("mensagemConfirmada", novaMensagem);
-
     } catch (err) {
       console.error("Erro ao salvar mensagem:", err);
       socket.emit("erro", { message: "Erro ao salvar mensagem." });
+    }
+  });
+
+  // ============================
+  // ENVIAR SUSSURRO
+  // ============================
+  socket.on("enviarSussurro", (mensagem, destinatarioNick) => {
+    try {
+      const usuarioDestino = usuariosConectados.find(
+        (user) => user.nickname === destinatarioNick
+      );
+
+      if (!usuarioDestino) {
+        socket.emit("erro", { message: "Destinatário não encontrado." });
+        return;
+      }
+
+      const data = new Date().toISOString();
+
+      const stmt = db.prepare(`
+        INSERT INTO mensagens (autor, conteudo, data, para)
+        VALUES (?, ?, ?, ?)
+      `);
+
+      const result = stmt.run(
+        mensagem.autor,
+        mensagem.conteudo,
+        data,
+        destinatarioNick
+      );
+
+      const novoSussurro = {
+        id: result.lastInsertRowid,
+        autor: mensagem.autor,
+        conteudo: mensagem.conteudo,
+        data,
+        para: destinatarioNick,
+      };
+
+      io.to(usuarioDestino.id).emit("sussurroRecebido", novoSussurro);
+      socket.emit("sussurroConfirmado", novoSussurro);
+    } catch (err) {
+      console.error("Erro ao salvar sussurro:", err);
+      socket.emit("erro", { message: "Erro ao salvar sussurro." });
     }
   });
 });

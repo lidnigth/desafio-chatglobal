@@ -48,17 +48,29 @@ const LogoutButton = styled.button`
   }
 `;
 
-function ChatPage({ mensagens, onEnviar, usuarios, nickname, onLogout }) {
+function ChatPage({
+  mensagens,
+  onEnviar,
+  usuarios,
+  nickname,
+  onLogout,
+  onEnviarSussurro,
+}) {
   return (
     <ChatPageContainer>
       <ChatMain>
         <Title>Chat Global</Title>
         <MessageList mensagens={mensagens} />
-        <MessageForm onEnviar={(conteudo) => onEnviar(nickname, conteudo)} />
+        <MessageForm
+          onEnviar={(conteudo) => onEnviar(nickname, conteudo)}
+          onEnviarSussurro={(destinatarioNick, conteudo) =>
+            onEnviarSussurro(nickname, destinatarioNick, conteudo)
+          }
+        />
       </ChatMain>
       <ChatSidebar>
         <div>
-        <UserList usuarios={usuarios} />
+          <UserList usuarios={usuarios} />
         </div>
         <div style={{ display: "flex", justifyContent: "center" }}>
           <LogoutButton onClick={onLogout}>Sair</LogoutButton>
