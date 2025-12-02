@@ -92,9 +92,9 @@ let usuariosConectados = [];
 
 io.on("connection", (socket) => {
   console.log("Novo cliente conectado:", socket.id);
-// ============================
-// HISTORICO INICIAL (msgs publicas)
-// ============================
+  // ============================
+  // HISTORICO INICIAL (msgs publicas)
+  // ============================
   try {
     const historicoPublico = db
       .prepare("SELECT * FROM mensagens WHERE para IS NULL ORDER BY id ASC")
@@ -117,6 +117,21 @@ io.on("connection", (socket) => {
       return;
     }
 
+    const existente = usuariosConectados.find((u) => u.nickname === nickname);
+
+    if (existente) {
+      const socketAindaAtivo = io.sockets.sockets.has(existente.id);
+      if (!socketAindaAtivo) {
+        usuariosConectados = usuariosConectados.filter(
+          (u) => u.nickname !== nickname
+        );
+        console.log(`Removido ghost de nick ${nickname}`);
+      } else {
+        callback({ sucesso: false, mensagem: "Nickname já está em uso." });
+        return;
+      }
+    }
+
     const novoUsuario = { id: socket.id, nickname };
     usuariosConectados.push(novoUsuario);
 
@@ -126,7 +141,9 @@ io.on("connection", (socket) => {
 
     try {
       const historicoCompleto = db
-        .prepare("SELECT * FROM mensagens WHERE para IS NULL OR para = ? OR autor = ? ORDER BY id ASC")
+        .prepare(
+          "SELECT * FROM mensagens WHERE para IS NULL OR para = ? OR autor = ? ORDER BY id ASC"
+        )
         .all(nickname, nickname);
 
       socket.emit("historicoMensagens", historicoCompleto);

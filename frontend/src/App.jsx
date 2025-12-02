@@ -5,14 +5,19 @@ import ChatPage from "./pages/ChatPage";
 
 function App() {
   const [mensagens, setMensagens] = useState([]);
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState(
+    () => localStorage.getItem("nickname") || ""
+  );
   const [usuariosConectados, setUsuariosConectados] = useState([]);
 
   const socketRef = useRef(null);
 
   useEffect(() => {
     if (!socketRef.current) {
-      socketRef.current = io("http://localhost:3005", { autoConnect: false });
+      socketRef.current = io("http://localhost:3005", {
+        autoConnect: false,
+        reconnection: false,
+      });
     }
 
     const socket = socketRef.current;
@@ -48,7 +53,7 @@ function App() {
     socket.on("usuariosAtualizados", (usuarios) => {
       setUsuariosConectados(usuarios);
     });
-    
+
     socket.on("mensagemSistema", (mensagem) => {
       setMensagens((prev) => [
         ...prev,
@@ -60,10 +65,29 @@ function App() {
         },
       ]);
     });
-    
+
     socket.on("disconnect", (reason) => {
-      console.log("Desconectado do servidor", reason);
+      console.log("Desconectado do servidor:", reason);
     });
+
+    if (nickname) {
+      if (!socket.connected) socket.connect();
+
+      const handleConnect = () => {
+        socket.emit("entrarChat", nickname, (resposta) => {
+          if (!resposta.sucesso) {
+            localStorage.removeItem("nickname");
+            setNickname("");
+            alert(resposta?.mensagem || "Erro ao restaurar sessão.");
+          }
+        });
+      };
+
+      if (socket.connected) handleConnect();
+      else socket.once("connect", handleConnect);
+
+      return () => socket.off("connect", handleConnect);
+    }
 
     return () => {
       socket.off("connect");
@@ -77,57 +101,22 @@ function App() {
       socket.off("disconnect");
       socket.disconnect();
     };
-  }, []);
+  }, [nickname]);
 
   const handleLogin = (nick) => {
     const socket = socketRef.current;
-    if (!socket) return;
+    if (!socket.connected) socket.connect();
 
-    socket.connect();
-
-    socket.once("connect", () => {
-      socket.emit("entrarChat", nick, (resposta) => {
-        if (resposta && resposta.sucesso) {
-          localStorage.setItem("nickname", nick);
-          setNickname(nick);
-          console.log("Entrou no chat com sucesso");
-        } else {
-          console.warn("Não foi possível entrar no chat:", resposta?.mensagem);
-          alert(resposta?.mensagem || "Erro ao entrar no chat.");
-        }
-      });
-    })
-  }
-
-  useEffect(() => {
-    const savedNick = localStorage.getItem("nickname");
-    const socket = socketRef.current;
-    if (!savedNick || !socket) return;
-
-    const tentarEntrar = () => {
-      socket.emit("entrarChat", savedNick, (resposta) => {
-        if (resposta?.sucesso) {
-          setNickname(savedNick);
-        } else {
-          console.warn(
-            "Não foi possível restaurar sessão:",
-            resposta?.mensagem
-          );
-          localStorage.removeItem("nickname");
-          setNickname("");
-        }
-      });
-    };
-      
-    if (socket.connected) {
-      tentarEntrar();
-    } else {
-      socket.once("connect", tentarEntrar);
-    }
-     return () => {
-       socket.off("connect", tentarEntrar);
-    };
-  }, []);
+    socket.emit("entrarChat", nick, (resposta) => {
+      if (resposta?.sucesso) {
+        localStorage.setItem("nickname", nick);
+        setNickname(nick);
+        console.log(`Usuário ${nick} entrou no chat.`);
+      } else {
+        alert(resposta?.mensagem || "Erro ao entrar no chat.");
+      }
+    });
+  };
 
   const enviarMensagem = (autor, conteudo) => {
     if (!conteudo.trim()) return;

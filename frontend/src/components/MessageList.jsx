@@ -48,7 +48,10 @@ function MessageList({ mensagens }) {
   return (
     <MessageListContainer>
       {mensagens.map((mensagem) => (
-        <MessageItem key={mensagem.id} $isSystem={mensagem.autor === "Sistema"}>
+        <MessageItem
+          key={`${mensagem.autor}-${mensagem.data}`}
+          $isSystem={mensagem.autor === "Sistema"}
+        >
           <Author>{mensagem.autor}:</Author>{" "}
           <Content>{mensagem.conteudo} </Content>
           <DateInfo>({new Date(mensagem.data).toLocaleString()})</DateInfo>
