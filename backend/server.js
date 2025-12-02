@@ -92,12 +92,14 @@ let usuariosConectados = [];
 
 io.on("connection", (socket) => {
   console.log("Novo cliente conectado:", socket.id);
-
+// ============================
+// HISTORICO INICIAL (msgs publicas)
+// ============================
   try {
-    const historico = db
-      .prepare("SELECT * FROM mensagens ORDER BY id ASC")
+    const historicoPublico = db
+      .prepare("SELECT * FROM mensagens WHERE para IS NULL ORDER BY id ASC")
       .all();
-    socket.emit("historicoMensagens", historico);
+    socket.emit("historicoMensagens", historicoPublico);
   } catch (err) {
     console.error("Erro ao carregar histórico:", err);
   }
@@ -122,6 +124,16 @@ io.on("connection", (socket) => {
     io.emit("usuariosAtualizados", usuariosConectados);
     io.emit("mensagemSistema", `${nickname} entrou no chat.`);
 
+    try {
+      const historicoCompleto = db
+        .prepare("SELECT * FROM mensagens WHERE para IS NULL OR para = ? OR autor = ? ORDER BY id ASC")
+        .all(nickname, nickname);
+
+      socket.emit("historicoMensagens", historicoCompleto);
+    } catch (err) {
+      console.error("Erro ao carregar histórico:", err);
+    }
+
     callback({ sucesso: true });
   });
 
@@ -136,6 +148,7 @@ io.on("connection", (socket) => {
         (user) => user.id !== socket.id
       );
 
+      console.log(`Usuário ${usuario.nickname} saiu do chat.`);
       io.emit("usuariosAtualizados", usuariosConectados);
       io.emit("mensagemSistema", `${usuario.nickname} saiu do chat.`);
     }

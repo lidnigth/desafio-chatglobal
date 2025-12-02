@@ -64,7 +64,7 @@ function ChatPage({
         <MessageForm
           onEnviar={(conteudo) => onEnviar(nickname, conteudo)}
           onEnviarSussurro={(destinatarioNick, conteudo) =>
-            onEnviarSussurro(nickname, destinatarioNick, conteudo)
+            onEnviarSussurro(nickname, conteudo, destinatarioNick)
           }
         />
       </ChatMain>
