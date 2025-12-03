@@ -1,36 +1,3 @@
-/* import express from "express";
-import cors from "cors";
-import { initializeDatabase } from "./config/database.js";
-import messageRoutes from "./routes/messageRoutes.js";
-import { setupSocketIO } from "./sockets/io.setup.js";
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-async function init() {
-  try {
-    await initializeDatabase();
-    console.log("Banco de dados inicializado");
-
-    app.use(messageRoutes);
-
-    const PORT = process.env.PORT || 3005;
-    const server = app.listen(PORT, () => {
-      console.log(`Servidor rodando em http://localhost:${PORT}`);
-    });
-
-    setupSocketIO(server);
-    console.log("Socket.IO configurado");
-  } catch (err) {
-    console.error("Erro ao inicializar:", err);
-    process.exit(1);
-  }
-}
-
-init();
-*/
-
 import express from "express";
 import cors from "cors";
 import Database from "better-sqlite3";
