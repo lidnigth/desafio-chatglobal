@@ -89,7 +89,7 @@ function App() {
     };
   }, [nickname]);
 
-  const handleLogin = (nick) => {
+  const handleLogin = (nick, fail) => {
     const socket = socketRef.current;
     if (!socket.connected) socket.connect();
 
@@ -100,6 +100,7 @@ function App() {
         console.log(`Usuário ${nick} entrou no chat.`);
       } else {
         alert(resposta.mensagem);
+        fail();
       }
     });
   };

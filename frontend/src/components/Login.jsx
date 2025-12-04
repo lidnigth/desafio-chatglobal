@@ -59,8 +59,9 @@ function Login({ socket, onEntrar }) {
     }
 
     setIsLoading(true);
-
-    onEntrar(nick);
+    onEntrar(nick, () => {
+      setIsLoading(false);
+    });
   };
 
   return (

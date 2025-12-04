@@ -56,6 +56,8 @@ const io = new Server(server, {
 });
 
 let usuariosConectados = [];
+let salas = {};
+// ex: salas = {"sala1": {usuarios: [socked.id, ...], mensagens: [{id, autor, conteudo, data, para?}, ...]}}
 
 io.on("connection", (socket) => {
   console.log("Novo cliente conectado:", socket.id);
@@ -122,6 +124,38 @@ io.on("connection", (socket) => {
   });
 
   // ============================
+  // ENTRAR EM SALA
+  // ============================
+  socket.on("entrarSala", (nomeSala, nickname, callback) => {
+    try {
+      if (!salas[nomeSala]) {
+        salas[nomeSala] = { usuarios: [], mensagens: [] };
+      }
+      
+      const nickExiste = salas[nomeSala].usuarios.some(
+        (u) => u.nickname === nickname
+      );
+
+      if (nickExiste) {
+        return callback({ sucesso: false, mensagem: "Nickname já está em uso na sala." });
+      }
+
+      salas[nomeSala].usuarios.push({id: socket.id, nickname});
+
+      socket.join(nomeSala);
+
+      socket.emit("historicoMensagensSala", salas[nomeSala].mensagens);
+
+      socket.to(nomeSala).emit("mensagemSistema", `${nickname} entrou na sala ${nomeSala}}`);
+
+      callback({ sucesso: true });
+    } catch (err) {
+      console.error("Erro ao entrar na sala:", err);
+      callback({ sucesso: false, mensagem: "Erro ao entrar na sala." });
+    }
+  });
+
+  // ============================
   // DESCONECTAR
   // ============================
   socket.on("disconnect", () => {
@@ -135,6 +169,20 @@ io.on("connection", (socket) => {
       console.log(`Usuário ${usuario.nickname} saiu do chat.`);
       io.emit("usuariosAtualizados", usuariosConectados);
       io.emit("mensagemSistema", `${usuario.nickname} saiu do chat.`);
+
+      Object.keys(salas).forEach((nomeSala) => {
+        const antes = salas[nomeSala].usuarios.length;
+
+        salas[nomeSala].usuarios = salas[nomeSala].usuarios.filter(
+          (u) => u.id !== socket.id
+        );
+
+        const depois = salas[nomeSala].usuarios.length;
+
+        if (antes !== depois) {
+          io.to(nomeSala).emit("mensagemSistema", `${usuario?.nickname || "Alguém"} saiu da sala ${nomeSala}}`);
+        }
+      });
     }
   });
 
@@ -164,6 +212,33 @@ io.on("connection", (socket) => {
     } catch (err) {
       console.error("Erro ao salvar mensagem:", err);
       socket.emit("erro", { message: "Erro ao salvar mensagem." });
+    }
+  });
+
+  // ============================
+  // ENVIAR MENSAGEM PARA SALA
+  // ============================
+  socket.on("enviarMensagemSala", (nomeSala, mensagem) => {
+    try {
+      if (!salas[nomeSala]) {
+        socket.emit("erro", { message: "Sala não encontrada." });
+        return;
+      }
+      const data = new Date().toISOString();
+      const novaMensagem = {
+        id: Date.now(),
+        autor: mensagem.autor,
+        conteudo: mensagem.conteudo,
+        data,
+        para: mensagem.para || null,
+      };
+
+      salas[nomeSala].mensagens.push(novaMensagem);
+
+      io.to(nomeSala).emit("mensagemRecebidaSala", novaMensagem);
+    } catch (err) {
+      console.error("Erro ao enviar mensagem para sala:", err);
+      socket.emit("erro", { message: "Erro ao enviar mensagem para sala." });
     }
   });
 
