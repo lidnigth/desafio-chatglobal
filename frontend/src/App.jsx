@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import Login from "./components/Login";
 import ChatPage from "./pages/ChatPage";
+import LoginSalaPage from "./pages/LoginSalaPage";
+import SalaPage from "./pages/SalaPage";
 
 function App() {
   const [mensagens, setMensagens] = useState([]);
@@ -9,6 +11,11 @@ function App() {
     () => localStorage.getItem("nickname") || ""
   );
   const [usuariosConectados, setUsuariosConectados] = useState([]);
+
+  const [salaAtual, setSalaAtual] = useState("");
+  const [nicknameSala, setNicknameSala] = useState("");
+  const [mensagensSala, setMensagensSala] = useState([]);
+  const [usuariosSala, setUsuariosSala] = useState([]);
 
   const socketRef = useRef(null);
 
@@ -84,6 +91,30 @@ function App() {
       ]);
     });
 
+    socket.on("historicoMensagensSala", (historico) => {
+      setMensagensSala(historico);
+    });
+
+    socket.on("mensagemRecebidaSala", (mensagem) => {
+      setMensagensSala((prev) => [...prev, mensagem]);
+    });
+
+    socket.on("usuariosAtualizadosSala", (usuarios) => {
+      setUsuariosSala(usuarios);
+    });
+
+    socket.on("mensagemSistemaSala", (mensagem) => {
+      setMensagensSala((prev) => [
+        ...prev, 
+        {
+        id: Date.now(),
+        autor: "Sistema",
+        conteudo: mensagem,
+        data: new Date().toISOString(),
+        }
+      ]);
+    });
+
     return () => {
       socket.off();
     };
@@ -130,16 +161,95 @@ function App() {
     socket.emit("enviarSussurro", sussurro, destinatarioNick);
   };
 
+  const entrarSala = (nomeSala, nick, fail) => {
+    const socket = socketRef.current;
+    if (!socket.connected) socket.connect();
+
+    socket.emit("entrarSala", nomeSala, nick, (resposta) => {
+      if (resposta.sucesso) {
+        setSalaAtual(nomeSala);
+        setNicknameSala(nick);
+        console.log(`Entrou na sala ${nomeSala} como ${nick}`);
+        setMensagensSala([]);
+      } else {
+        alert(resposta.mensagem);
+        fail();
+      }
+    });
+  };
+  
+  const sairSala = () => {
+  const socket = socketRef.current;
+
+  if (!socket || !salaAtual || !nicknameSala) {
+    setSalaAtual("");
+    setNicknameSala("");
+    setMensagensSala([]);
+    setUsuariosSala([]);
+    return;
+  }
+
+  socket.emit("sairSala", salaAtual, nicknameSala, (resposta) => {
+    if (!resposta?.sucesso) {
+      console.warn("Falha ao sair da sala:", resposta?.mensagem);
+    }
+
+    setSalaAtual("");
+    setNicknameSala("");
+    setMensagensSala([]);
+    setUsuariosSala([]);
+  });
+};
+
+  const enviarMensagemSala = (conteudo) => {
+    if (!conteudo.trim() || !salaAtual) return;
+
+    const socket = socketRef.current;
+
+    socket.emit("enviarMensagemSala", salaAtual, {
+      autor: nicknameSala,
+      conteudo,
+    });
+  };
+
   const handleLogout = () => {
     const socket = socketRef.current;
     localStorage.removeItem("nickname");
     setNickname("");
     if (socket) socket.disconnect();
   };
+  
+  if (salaAtual === "LOGIN_SALA") {
+    return (
+      <LoginSalaPage
+        onEntrarSala={entrarSala}
+        onVoltar={() => setSalaAtual("")}
+      />
+    );
+  }
+
+  if (salaAtual && salaAtual !== "LOGIN_SALA") {
+    return (
+      <SalaPage
+        sala={salaAtual}
+        nickname={nicknameSala}
+        mensagens={mensagensSala}
+        usuarios={usuariosSala}
+        onEnviar={enviarMensagemSala}
+        onVoltar={sairSala}
+      />
+    );
+  }
 
   if (!nickname) {
-    return <Login onEntrar={handleLogin} />;
+    return (
+      <Login
+      onEntrar={handleLogin}
+      onEntrarSala={() => setSalaAtual("LOGIN_SALA")}
+      />
+    );
   }
+
 
   return (
     <ChatPage

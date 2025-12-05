@@ -146,12 +146,48 @@ io.on("connection", (socket) => {
 
       socket.emit("historicoMensagensSala", salas[nomeSala].mensagens);
 
-      socket.to(nomeSala).emit("mensagemSistema", `${nickname} entrou na sala ${nomeSala}}`);
+      io.to(nomeSala).emit("usuariosAtualizadosSala", salas[nomeSala].usuarios);
+
+      io.to(nomeSala).emit("mensagemSistemaSala", `${nickname} entrou na sala ${nomeSala}`);
 
       callback({ sucesso: true });
     } catch (err) {
       console.error("Erro ao entrar na sala:", err);
       callback({ sucesso: false, mensagem: "Erro ao entrar na sala." });
+    }
+  });
+
+  // ============================
+  // SAIR DA SALA
+  // ============================
+  socket.on("sairSala", (nomeSala, nickname, callback) => {
+    try {
+      if (!salas[nomeSala]) {
+        return callback({ sucesso: false, mensagem: "Sala não encontrada." });
+      }
+
+      const usuarioSala = salas[nomeSala].usuarios.find(
+        (u) => u.nickname === nickname
+      );
+
+      if(!usuarioSala) {
+        return callback?.({ sucesso: false, mensagem: "Usuário não está na sala." });
+      }
+
+      salas[nomeSala].usuarios = salas[nomeSala].usuarios.filter(
+        (u) => u.nickname !== nickname
+      );
+
+      io.to(nomeSala).emit("mensagemSistemaSala", `${nickname} saiu da sala ${nomeSala}`);
+      io.to(nomeSala).emit("usuariosAtualizadosSala", salas[nomeSala].usuarios);
+      socket.leave(nomeSala);
+
+      callback({ sucesso: true });
+
+      console.log(`Usuário ${nickname} saiu da sala ${nomeSala}`);
+    } catch (err) {
+      console.error("Erro ao sair da sala:", err);
+      callback?.({ sucesso: false, mensagem: "Erro ao sair da sala." });
     }
   });
 
@@ -169,20 +205,6 @@ io.on("connection", (socket) => {
       console.log(`Usuário ${usuario.nickname} saiu do chat.`);
       io.emit("usuariosAtualizados", usuariosConectados);
       io.emit("mensagemSistema", `${usuario.nickname} saiu do chat.`);
-
-      Object.keys(salas).forEach((nomeSala) => {
-        const antes = salas[nomeSala].usuarios.length;
-
-        salas[nomeSala].usuarios = salas[nomeSala].usuarios.filter(
-          (u) => u.id !== socket.id
-        );
-
-        const depois = salas[nomeSala].usuarios.length;
-
-        if (antes !== depois) {
-          io.to(nomeSala).emit("mensagemSistema", `${usuario?.nickname || "Alguém"} saiu da sala ${nomeSala}}`);
-        }
-      });
     }
   });
 
@@ -230,7 +252,6 @@ io.on("connection", (socket) => {
         autor: mensagem.autor,
         conteudo: mensagem.conteudo,
         data,
-        para: mensagem.para || null,
       };
 
       salas[nomeSala].mensagens.push(novaMensagem);

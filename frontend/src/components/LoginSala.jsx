@@ -1,13 +1,12 @@
 import { useState } from "react";
 import styled from "styled-components";
 
-const LoginContainer = styled.div`
+const LoginSalaContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: linear-gradient(135deg, #0f172a, #1e293b);
   color: #e2e8f0;
 `;
 
@@ -40,72 +39,65 @@ const Button = styled.button`
   }
 `;
 
-const ButtonDois = styled.button`
-  margin-top: 20px;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 6px;
-  background: #64748b;
-  color: #f1f5f9;
-  cursor: pointer;
-
-  &:hover {
-    background: #475569;
-  }
-`;
-
 const ErrorMessage = styled.p`
   color: #f87171;
   margin-top: 10px;
 `;
 
-function Login({ socket, onEntrar, onEntrarSala }) {
-  const [nickname, setNickname] = useState("");
+function LoginSala({ onEntrarSala, onVoltar }) {
+  const [nomeSala, setNomeSala] = useState("");
+  const [nicknameSala, setNicknameSala] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const nick = nickname.trim();
-    if (!nick) {
-      setError("Por favor, insira um nickname válido.");
+    const sala = nomeSala.trim();
+    const nick = nicknameSala.trim();
+
+    if (!sala || !nick) {
+      setError("Preencha o nome da sala e seu nickname.");
       return;
     }
 
     setIsLoading(true);
-    onEntrar(nick, () => {
-      setIsLoading(false);
-    });
+    onEntrarSala(sala, nick, () => setIsLoading(false));
   };
 
-  const handleEntrarSala = () => {
-    onEntrarSala();
-  }
+  const voltandoSala = () => {
+    onVoltar();
+  };
 
   return (
-    <LoginContainer>
-      <h2>Entre no chat global:</h2>
+    <LoginSalaContainer>
+      <h2>Entre em uma sala:</h2>
       <form onSubmit={handleSubmit}>
         <Input
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          placeholder="Digite seu nickname"
+          value={nomeSala}
+          onChange={(e) => setNomeSala(e.target.value)}
+          placeholder="Nome da sala"
           disabled={isLoading}
         />
+
+        <Input
+          value={nicknameSala}
+          onChange={(e) => setNicknameSala(e.target.value)}
+          placeholder="Seu nickname"
+          disabled={isLoading}
+        />
+
         <Button type="submit" disabled={isLoading}>
           {isLoading ? "Entrando..." : "Entrar"}
         </Button>
       </form>
 
-      <ButtonDois
-        onClick={handleEntrarSala}
-        disabled={isLoading}
-      >
-        Entrar em uma sala
-      </ButtonDois>
+      <Button onClick={voltandoSala} style={{ marginTop: "20px" }}>
+        Voltar
+      </Button>
+
       {error && <ErrorMessage>{error}</ErrorMessage>}
-    </LoginContainer>
+    </LoginSalaContainer>
   );
 }
 
-export default Login;
+export default LoginSala;
